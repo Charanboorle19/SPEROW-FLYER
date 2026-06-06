@@ -1,0 +1,74 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 162 100% 90%; /* #CCFFF0 */
+    --foreground: 164 82% 19%; /* #095941 */
+    --card: 162 100% 90%;
+    --card-foreground: 164 82% 19%;
+    --primary: 164 82% 19%;
+    --primary-foreground: 162 100% 90%;
+    --secondary: 162 30% 80%;
+    --secondary-foreground: 164 82% 19%;
+    --muted: 162 20% 70%;
+    --muted-foreground: 164 30% 30%;
+    --accent: 164 82% 19%;
+    --accent-foreground: 162 100% 90%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 164 82% 19%;
+    --input: 164 82% 19%;
+    --ring: 164 82% 19%;
+    --radius: 0.5rem;
+  }
+}
+
+@layer base {
+  body {
+    @apply bg-[#D1CFCA] text-foreground overflow-x-hidden;
+    font-family: 'Manrope', sans-serif;
+  }
+}
+
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 0;
+  }
+  body {
+    background: white;
+    margin: 0;
+    padding: 0;
+  }
+  .no-print {
+    display: none !important;
+  }
+  .print-only {
+    display: block !important;
+  }
+  .flyer-container {
+    box-shadow: none !important;
+    margin: 0 !important;
+    border: none !important;
+    width: 210mm;
+    height: 297mm;
+  }
+}
+
+.flyer-container {
+  width: 210mm;
+  height: 297mm;
+  padding: 10mm 14mm;
+  box-sizing: border-box;
+  background-color: #CCFFF0;
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.a4-shadow {
+  box-shadow: 0 0 60px rgba(0, 0, 0, 0.25);
+}

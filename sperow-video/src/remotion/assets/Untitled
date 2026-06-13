@@ -1,0 +1,704 @@
+import React, {type CSSProperties} from 'react';
+import {
+  AbsoluteFill,
+  interpolate,
+  Sequence,
+  spring,
+  useCurrentFrame,
+  useVideoConfig,
+} from 'remotion';
+
+const colors = {
+  background: '#F8F6F1',
+  primary: '#124E78',
+  teal: '#0E7490',
+  gold: '#B99A6C',
+  ink: '#14384A',
+  muted: '#6F7F80',
+  white: '#FFFEFB',
+  lightBlue: 'rgba(18, 78, 120, 0.08)',
+  lightTeal: 'rgba(14, 116, 144, 0.06)',
+};
+
+const journeySteps = [
+  {label: 'Consultation', delay: 0, icon: 'consultation'},
+  {label: 'Surgery Planning', delay: 20, icon: 'planning'},
+  {label: 'Procedure', delay: 40, icon: 'procedure'},
+  {label: 'Recovery', delay: 60, icon: 'recovery'},
+  {label: 'Follow-Up', delay: 80, icon: 'followup'},
+];
+
+const nodePositions = [80, 205, 330, 455, 580];
+const SCENE_1_DURATION = 100; // "SPEROW supports every step" duration
+const SCENE_2_START_FRAME = SCENE_1_DURATION + 10;
+const SCENE_2_DURATION = 100; // 4-8 seconds
+const TIMELINE_START_FRAME = SCENE_2_START_FRAME + SCENE_2_DURATION;
+
+export const PatientJourney: React.FC = () => {
+  const frame = useCurrentFrame();
+
+  // Scene 1 fade out (SPEROW supports every step)
+  const scene1Opacity = interpolate(frame, [SCENE_1_DURATION - 20, SCENE_1_DURATION], [1, 0], {
+    extrapolateLeft: 'clamp',
+    extrapolateRight: 'clamp',
+  });
+
+  // Scene 2 fade out
+  const scene2Opacity = interpolate(frame, [SCENE_2_START_FRAME + SCENE_2_DURATION - 20, SCENE_2_START_FRAME + SCENE_2_DURATION], [1, 0], {
+    extrapolateLeft: 'clamp',
+    extrapolateRight: 'clamp',
+  });
+
+  // Timeline fade in after Scene 2
+  const timelineOpacity = interpolate(frame, [TIMELINE_START_FRAME, TIMELINE_START_FRAME + 15], [0, 1], {
+    extrapolateLeft: 'clamp',
+    extrapolateRight: 'clamp',
+  });
+
+  // Timeline fade out after completion
+  const timelineFadeOut = interpolate(frame, [TIMELINE_START_FRAME + 170, TIMELINE_START_FRAME + 190], [1, 0], {
+    extrapolateLeft: 'clamp',
+    extrapolateRight: 'clamp',
+  });
+
+  return (
+    <AbsoluteFill style={styles.container}>
+      <style>
+        {`@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700&display=swap');`}
+      </style>
+
+      <Background frame={frame} />
+      <Particles frame={frame} />
+
+      {/* Scene 1: SPEROW supports every step */}
+      <AbsoluteFill style={{opacity: scene1Opacity}}>
+        <Sequence from={0} durationInFrames={SCENE_1_DURATION}>
+          <Scene1Message />
+        </Sequence>
+      </AbsoluteFill>
+
+      {/* Scene 2: Surgeon Hero Message (text only) */}
+      <AbsoluteFill style={{opacity: scene2Opacity}}>
+        <Sequence from={SCENE_2_START_FRAME} durationInFrames={SCENE_2_DURATION}>
+          <SurgeonHeroScene />
+        </Sequence>
+      </AbsoluteFill>
+
+      {/* Timeline - starts after Scene 2 */}
+      <AbsoluteFill style={{...styles.timelineWrapper, opacity: timelineOpacity * timelineFadeOut}}>
+        <div
+          style={{
+            ...styles.timelineContainer,
+            opacity: timelineOpacity,
+          }}
+        >
+          <div style={styles.lineContainer}>
+            <div style={styles.lineBase} />
+            <ProgressLine frame={Math.max(0, frame - TIMELINE_START_FRAME)} />
+          </div>
+
+          {journeySteps.map((step, index) => (
+            <JourneyNode
+              key={step.label}
+              label={step.label}
+              icon={step.icon}
+              index={index}
+              delay={step.delay}
+              isLast={index === journeySteps.length - 1}
+              startOffset={TIMELINE_START_FRAME}
+            />
+          ))}
+        </div>
+      </AbsoluteFill>
+    </AbsoluteFill>
+  );
+};
+
+// Scene 1: SPEROW supports every step
+const Scene1Message: React.FC = () => {
+  const frame = useCurrentFrame();
+
+  const messageOpacity = interpolate(frame, [0, 15, 60, 80], [0, 1, 1, 0], {
+    extrapolateLeft: 'clamp',
+    extrapolateRight: 'clamp',
+  });
+
+  const messageY = interpolate(frame, [0, 15], [30, 0], {
+    extrapolateLeft: 'clamp',
+    extrapolateRight: 'clamp',
+  });
+
+  const wordmarkGlow = interpolate(frame, [5, 20, 55], [0, 1, 0.3], {
+    extrapolateLeft: 'clamp',
+    extrapolateRight: 'clamp',
+  });
+
+  return (
+    <AbsoluteFill style={styles.messageContainer}>
+      <div
+        style={{
+          ...styles.messageWrapper,
+          opacity: messageOpacity,
+          transform: `translateY(${messageY}px)`,
+        }}
+      >
+        <div style={styles.finalMessage}>
+          SPEROW <span style={styles.finalMessageLight}>supports every step.</span>
+        </div>
+        <div
+          style={{
+            ...styles.wordmarkGlow,
+            textShadow:
+              wordmarkGlow > 0.1
+                ? `0 0 ${wordmarkGlow * 20}px ${colors.gold}`
+                : 'none',
+          }}
+        />
+      </div>
+    </AbsoluteFill>
+  );
+};
+
+// Scene 2: Surgeon Hero Message (text only - no icon)
+const SurgeonHeroScene: React.FC = () => {
+  const frame = useCurrentFrame();
+
+  // First line: "You focus on surgery."
+  const line1Opacity = interpolate(frame, [0, 15, 45, 65], [0, 1, 1, 0], {
+    extrapolateLeft: 'clamp',
+    extrapolateRight: 'clamp',
+  });
+  
+  const line1Y = interpolate(frame, [0, 15], [40, 0], {
+    extrapolateLeft: 'clamp',
+    extrapolateRight: 'clamp',
+  });
+
+  // Second line: "We'll support the journey."
+  const line2Opacity = interpolate(frame, [55, 70, SCENE_2_DURATION - 20, SCENE_2_DURATION], [0, 1, 1, 0], {
+    extrapolateLeft: 'clamp',
+    extrapolateRight: 'clamp',
+  });
+  
+  const line2Y = interpolate(frame, [55, 70], [40, 0], {
+    extrapolateLeft: 'clamp',
+    extrapolateRight: 'clamp',
+  });
+
+  return (
+    <AbsoluteFill style={styles.surgeonContainer}>
+      {/* Text messages only - no icon */}
+      <div
+        style={{
+          ...styles.surgeonTextWrapper,
+          opacity: line1Opacity,
+          transform: `translateY(${line1Y}px)`,
+        }}
+      >
+        <div style={styles.surgeonLine1}>You focus on <span style={styles.surgeonAccent}>surgery.</span></div>
+      </div>
+
+      <div
+        style={{
+          ...styles.surgeonTextWrapper,
+          opacity: line2Opacity,
+          transform: `translateY(${line2Y}px)`,
+        }}
+      >
+        <div style={styles.surgeonLine2}>We'll support the <span style={styles.surgeonAccent}>journey.</span></div>
+      </div>
+    </AbsoluteFill>
+  );
+};
+
+const Background: React.FC<{frame: number}> = ({frame}) => {
+  const drift = interpolate(frame, [0, 300], [0, 1]);
+  const gradientRotate = interpolate(frame, [0, 300], [0, 180]);
+
+  return (
+    <AbsoluteFill style={styles.background}>
+      <div style={styles.baseGradient} />
+
+      <div
+        style={{
+          ...styles.animatedGradient,
+          transform: `rotate(${gradientRotate}deg) translate(${drift * 20}px, ${drift * 15}px)`,
+        }}
+      />
+
+      <div
+        style={{
+          ...styles.glowOrb1,
+          transform: `translate(${drift * 40}px, ${drift * 30}px)`,
+        }}
+      />
+      <div
+        style={{
+          ...styles.glowOrb2,
+          transform: `translate(${-drift * 30}px, ${drift * 20}px)`,
+        }}
+      />
+
+      <div style={styles.vignette} />
+    </AbsoluteFill>
+  );
+};
+
+const Particles: React.FC<{frame: number}> = ({frame}) => {
+  const particles = Array.from({length: 12}, (_, i) => {
+    const speed = 0.5 + i * 0.1;
+    const yOffset = ((frame * speed) % 200) - 100;
+    const opacity = 0.3 + Math.sin(frame * 0.02 + i) * 0.2;
+
+    return (
+      <div
+        key={i}
+        style={{
+          position: 'absolute',
+          left: `${15 + (i * 7) % 70}%`,
+          top: `${20 + yOffset}%`,
+          width: 2,
+          height: 2,
+          borderRadius: '50%',
+          background: `radial-gradient(circle, ${colors.teal}, transparent)`,
+          opacity: opacity * 0.4,
+          filter: 'blur(1px)',
+        }}
+      />
+    );
+  });
+
+  return <>{particles}</>;
+};
+
+const ProgressLine: React.FC<{frame: number}> = ({frame}) => {
+  const progress = interpolate(frame, [0, 140], [0, 100], {
+    extrapolateLeft: 'clamp',
+    extrapolateRight: 'clamp',
+  });
+
+  return (
+    <div
+      style={{
+        ...styles.lineProgress,
+        height: `${progress}%`,
+      }}
+    />
+  );
+};
+
+// Illustration Components
+const ConsultationIcon: React.FC<{frame: number; appearFrame: number}> = ({frame, appearFrame}) => {
+  const scale = spring({frame: appearFrame, fps: 30, config: {damping: 20, stiffness: 100}});
+  
+  return (
+    <svg width="48" height="48" viewBox="0 0 48 48" style={{transform: `scale(${scale})`}}>
+      <circle cx="24" cy="24" r="8" fill="none" stroke={colors.teal} strokeWidth="2" opacity={interpolate(appearFrame, [0, 20], [0, 1])}>
+        <animateTransform attributeName="transform" type="rotate" from="0 24 24" to="360 24 24" dur="3s" repeatCount="indefinite" />
+      </circle>
+      <path d="M24 32 L24 38 Q24 42 28 42 L36 42" fill="none" stroke={colors.primary} strokeWidth="2" strokeDasharray={interpolate(appearFrame, [0, 25], [0, 100], {extrapolateRight: 'clamp'})} strokeDashoffset={interpolate(appearFrame, [0, 25], [100, 0], {extrapolateRight: 'clamp'})} />
+      <path d="M16 24 L18 24 L20 20 L24 28 L26 24 L28 24" fill="none" stroke={colors.gold} strokeWidth="1.5" opacity={interpolate(appearFrame, [20, 40], [0, 1])}>
+        <animate attributeName="opacity" values="0.3;1;0.3" dur="1.5s" repeatCount="indefinite" />
+      </path>
+    </svg>
+  );
+};
+
+const PlanningIcon: React.FC<{frame: number; appearFrame: number}> = ({frame, appearFrame}) => {
+  const scale = spring({frame: appearFrame, fps: 30, config: {damping: 20, stiffness: 100}});
+  
+  return (
+    <svg width="48" height="48" viewBox="0 0 48 48" style={{transform: `scale(${scale})`}}>
+      <rect x="14" y="10" width="20" height="28" rx="2" fill="none" stroke={colors.primary} strokeWidth="2" strokeDasharray={interpolate(appearFrame, [0, 30], [0, 80], {extrapolateRight: 'clamp'})} strokeDashoffset={interpolate(appearFrame, [0, 30], [80, 0], {extrapolateRight: 'clamp'})} />
+      <rect x="18" y="6" width="12" height="6" rx="1" fill={colors.teal} opacity={interpolate(appearFrame, [20, 35], [0, 1])} />
+      <line x1="18" y1="20" x2="30" y2="20" stroke={colors.gold} strokeWidth="1.5" strokeDasharray={interpolate(appearFrame, [25, 45], [0, 12], {extrapolateRight: 'clamp'})} strokeDashoffset={interpolate(appearFrame, [25, 45], [12, 0], {extrapolateRight: 'clamp'})} />
+      <line x1="18" y1="26" x2="28" y2="26" stroke={colors.gold} strokeWidth="1.5" strokeDasharray={interpolate(appearFrame, [30, 50], [0, 10], {extrapolateRight: 'clamp'})} strokeDashoffset={interpolate(appearFrame, [30, 50], [10, 0], {extrapolateRight: 'clamp'})} />
+      <line x1="18" y1="32" x2="26" y2="32" stroke={colors.gold} strokeWidth="1.5" strokeDasharray={interpolate(appearFrame, [35, 55], [0, 8], {extrapolateRight: 'clamp'})} strokeDashoffset={interpolate(appearFrame, [35, 55], [8, 0], {extrapolateRight: 'clamp'})} />
+      <circle cx="34" cy="24" r="2" fill={colors.gold} opacity={interpolate(appearFrame, [40, 60], [0, 0.8])}>
+        <animate attributeName="opacity" values="0.3;1;0.3" dur="2s" repeatCount="indefinite" />
+      </circle>
+    </svg>
+  );
+};
+
+const ProcedureIcon: React.FC<{frame: number; appearFrame: number}> = ({frame, appearFrame}) => {
+  const scale = spring({frame: appearFrame, fps: 30, config: {damping: 20, stiffness: 100}});
+  const glowPulse = interpolate(Math.sin(frame * 0.1), [-1, 1], [0.3, 0.8]);
+  
+  return (
+    <svg width="48" height="48" viewBox="0 0 48 48" style={{transform: `scale(${scale})`}}>
+      <path d="M28 14 L38 24 L28 34" fill="none" stroke={colors.teal} strokeWidth="2" strokeDasharray={interpolate(appearFrame, [0, 25], [0, 40], {extrapolateRight: 'clamp'})} strokeDashoffset={interpolate(appearFrame, [0, 25], [40, 0], {extrapolateRight: 'clamp'})} />
+      <path d="M38 24 L42 24" stroke={colors.gold} strokeWidth="2" opacity={interpolate(appearFrame, [20, 35], [0, 1])} />
+      <circle cx="24" cy="24" r="10" fill="none" stroke={colors.primary} strokeWidth="1.5" opacity={interpolate(appearFrame, [15, 30], [0, 1])} />
+      <line x1="24" y1="16" x2="24" y2="32" stroke={colors.primary} strokeWidth="1.5" opacity={interpolate(appearFrame, [20, 35], [0, 1])} />
+      <line x1="16" y1="24" x2="32" y2="24" stroke={colors.primary} strokeWidth="1.5" opacity={interpolate(appearFrame, [25, 40], [0, 1])} />
+      <circle cx="24" cy="24" r="14" fill="none" stroke={colors.gold} strokeWidth="0.5" opacity={glowPulse * 0.5}>
+        <animate attributeName="r" values="12;16;12" dur="2s" repeatCount="indefinite" />
+        <animate attributeName="opacity" values="0.2;0.5;0.2" dur="2s" repeatCount="indefinite" />
+      </circle>
+    </svg>
+  );
+};
+
+const RecoveryIcon: React.FC<{frame: number; appearFrame: number}> = ({frame, appearFrame}) => {
+  const scale = spring({frame: appearFrame, fps: 30, config: {damping: 20, stiffness: 100}});
+  
+  return (
+    <svg width="48" height="48" viewBox="0 0 48 48" style={{transform: `scale(${scale})`}}>
+      <path d="M24 34 L24 34 C24 34 16 28 12 22 C8 16 10 10 16 10 C20 10 22 14 24 18 C26 14 28 10 32 10 C38 10 40 16 36 22 C32 28 24 34 24 34Z" fill="none" stroke={colors.teal} strokeWidth="2" strokeDasharray={interpolate(appearFrame, [0, 40], [0, 120], {extrapolateRight: 'clamp'})} strokeDashoffset={interpolate(appearFrame, [0, 40], [120, 0], {extrapolateRight: 'clamp'})} />
+      <path d="M8 24 L12 24 L14 20 L18 28 L22 20 L26 28 L28 24 L32 24" fill="none" stroke={colors.gold} strokeWidth="1.5" opacity={interpolate(appearFrame, [30, 50], [0, 1])}>
+        <animate attributeName="opacity" values="0.4;1;0.4" dur="1s" repeatCount="indefinite" />
+      </path>
+      {Array.from({length: 3}).map((_, i) => (
+        <circle key={i} cx={20 + i * 4} cy={16} r="1.5" fill={colors.gold} opacity={interpolate(appearFrame, [40 + i * 5, 60 + i * 5], [0, 0.6])}>
+          <animate attributeName="cy" values="16;12;16" dur={`${1 + i * 0.5}s`} repeatCount="indefinite" />
+          <animate attributeName="opacity" values="0.3;0.8;0.3" dur={`${1 + i * 0.5}s`} repeatCount="indefinite" />
+        </circle>
+      ))}
+    </svg>
+  );
+};
+
+const FollowUpIcon: React.FC<{frame: number; appearFrame: number}> = ({frame, appearFrame}) => {
+  const scale = spring({frame: appearFrame, fps: 30, config: {damping: 20, stiffness: 100}});
+  
+  return (
+    <svg width="48" height="48" viewBox="0 0 48 48" style={{transform: `scale(${scale})`}}>
+      <rect x="10" y="16" width="28" height="20" rx="2" fill="none" stroke={colors.primary} strokeWidth="2" strokeDasharray={interpolate(appearFrame, [0, 30], [0, 76], {extrapolateRight: 'clamp'})} strokeDashoffset={interpolate(appearFrame, [0, 30], [76, 0], {extrapolateRight: 'clamp'})} />
+      <line x1="10" y1="18" x2="24" y2="28" stroke={colors.teal} strokeWidth="1.5" strokeDasharray={interpolate(appearFrame, [20, 40], [0, 30], {extrapolateRight: 'clamp'})} strokeDashoffset={interpolate(appearFrame, [20, 40], [30, 0], {extrapolateRight: 'clamp'})} />
+      <line x1="38" y1="18" x2="24" y2="28" stroke={colors.teal} strokeWidth="1.5" strokeDasharray={interpolate(appearFrame, [25, 45], [0, 30], {extrapolateRight: 'clamp'})} strokeDashoffset={interpolate(appearFrame, [25, 45], [30, 0], {extrapolateRight: 'clamp'})} />
+      <path d="M32 12 L35 15 L42 8" fill="none" stroke={colors.gold} strokeWidth="2" strokeLinecap="round" strokeDasharray={interpolate(appearFrame, [30, 55], [0, 20], {extrapolateRight: 'clamp'})} strokeDashoffset={interpolate(appearFrame, [30, 55], [20, 0], {extrapolateRight: 'clamp'})} />
+      <circle cx="38" cy="38" r="6" fill="none" stroke={colors.gold} strokeWidth="1.5" opacity={interpolate(appearFrame, [40, 60], [0, 1])}>
+        <animateTransform attributeName="transform" type="rotate" from="0 38 38" to="360 38 38" dur="4s" repeatCount="indefinite" />
+      </circle>
+      <line x1="38" y1="38" x2="38" y2="34" stroke={colors.gold} strokeWidth="1" opacity={interpolate(appearFrame, [45, 65], [0, 1])}>
+        <animateTransform attributeName="transform" type="rotate" from="0 38 38" to="360 38 38" dur="4s" repeatCount="indefinite" />
+      </line>
+    </svg>
+  );
+};
+
+const JourneyNode: React.FC<{
+  label: string;
+  icon: string;
+  index: number;
+  delay: number;
+  isLast: boolean;
+  startOffset: number;
+}> = ({label, icon, index, delay, isLast, startOffset}) => {
+  const frame = useCurrentFrame();
+  const {fps} = useVideoConfig();
+  
+  const relativeFrame = Math.max(0, frame - startOffset);
+  const appearFrame = Math.max(0, relativeFrame - delay);
+  
+  const nodeScale = spring({
+    frame: appearFrame,
+    fps,
+    config: {damping: 20, stiffness: 100, mass: 0.8},
+  });
+
+  const labelOpacity = interpolate(appearFrame, [0, 15], [0, 1], {
+    extrapolateLeft: 'clamp',
+    extrapolateRight: 'clamp',
+  });
+
+  const labelY = interpolate(appearFrame, [0, 20], [15, 0], {
+    extrapolateLeft: 'clamp',
+    extrapolateRight: 'clamp',
+  });
+
+  const glowOpacity = interpolate(appearFrame, [20, 35, 50], [0, 0.6, 0], {
+    extrapolateLeft: 'clamp',
+    extrapolateRight: 'clamp',
+  });
+
+  const iconOpacity = interpolate(appearFrame, [10, 30], [0, 1], {
+    extrapolateLeft: 'clamp',
+    extrapolateRight: 'clamp',
+  });
+
+  const iconScale = spring({
+    frame: Math.max(0, appearFrame - 15),
+    fps,
+    config: {damping: 18, stiffness: 90},
+  });
+
+  const renderIcon = () => {
+    const iconProps = {frame: relativeFrame, appearFrame};
+    switch(icon) {
+      case 'consultation':
+        return <ConsultationIcon {...iconProps} />;
+      case 'planning':
+        return <PlanningIcon {...iconProps} />;
+      case 'procedure':
+        return <ProcedureIcon {...iconProps} />;
+      case 'recovery':
+        return <RecoveryIcon {...iconProps} />;
+      case 'followup':
+        return <FollowUpIcon {...iconProps} />;
+      default:
+        return null;
+    }
+  };
+
+  return (
+    <div
+      style={{
+        ...styles.nodeWrapper,
+        top: nodePositions[index],
+      }}
+    >
+      <div
+        style={{
+          ...styles.iconContainer,
+          opacity: iconOpacity,
+          transform: `scale(${iconScale})`,
+          left: -60,
+        }}
+      >
+        {renderIcon()}
+      </div>
+
+      <div style={styles.nodeContainer}>
+        <div
+          style={{
+            ...styles.nodeOuter,
+            transform: `scale(${nodeScale})`,
+          }}
+        >
+          <div
+            style={{
+              ...styles.nodeGlow,
+              opacity: glowOpacity,
+            }}
+          />
+          <div style={styles.nodeInner} />
+        </div>
+      </div>
+
+      <div
+        style={{
+          ...styles.labelContainer,
+          opacity: labelOpacity,
+          transform: `translateY(${labelY}px)`,
+        }}
+      >
+        <div style={styles.labelText}>{label}</div>
+        {!isLast && index < 4 && (
+          <div
+            style={{
+              ...styles.labelLine,
+              width: `${interpolate(appearFrame, [0, 15], [0, 40], {
+                extrapolateLeft: 'clamp',
+                extrapolateRight: 'clamp',
+              })}px`,
+            }}
+          />
+        )}
+      </div>
+    </div>
+  );
+};
+
+const styles: Record<string, CSSProperties> = {
+  container: {
+    fontFamily: 'Manrope',
+    overflow: 'hidden',
+    letterSpacing: '0.3em',
+  },
+  background: {
+    overflow: 'hidden',
+  },
+  baseGradient: {
+    position: 'absolute',
+    inset: 0,
+    background: 'radial-gradient(circle at 30% 40%, #F2EFE8, #F8F6F1 70%)',
+  },
+  animatedGradient: {
+    position: 'absolute',
+    width: '150%',
+    height: '150%',
+    top: '-25%',
+    left: '-25%',
+    background:
+      'linear-gradient(135deg, rgba(14, 116, 144, 0.04), rgba(18, 78, 120, 0.06), rgba(185, 154, 108, 0.03))',
+    filter: 'blur(60px)',
+  },
+  glowOrb1: {
+    position: 'absolute',
+    width: 600,
+    height: 600,
+    borderRadius: '50%',
+    top: -200,
+    right: -200,
+    background: `radial-gradient(circle, ${colors.lightTeal}, transparent)`,
+    filter: 'blur(80px)',
+  },
+  glowOrb2: {
+    position: 'absolute',
+    width: 500,
+    height: 500,
+    borderRadius: '50%',
+    bottom: -150,
+    left: -150,
+    background: `radial-gradient(circle, ${colors.lightBlue}, transparent)`,
+    filter: 'blur(70px)',
+  },
+  vignette: {
+    position: 'absolute',
+    inset: 0,
+    background:
+      'radial-gradient(circle at center, transparent 50%, rgba(0, 0, 0, 0.04) 100%)',
+    pointerEvents: 'none',
+  },
+  timelineWrapper: {
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  timelineContainer: {
+    position: 'relative',
+    width: 720,
+    height: 700,
+  },
+  lineContainer: {
+    position: 'absolute',
+    left: 150,
+    top: 60,
+    width: 2,
+    height: 580,
+  },
+  lineBase: {
+    position: 'absolute',
+    width: '100%',
+    height: '100%',
+    background: `linear-gradient(180deg, ${colors.primary}20, ${colors.teal}20, ${colors.gold}20)`,
+    borderRadius: 2,
+  },
+  lineProgress: {
+    position: 'absolute',
+    width: '100%',
+    bottom: 0,
+    background: `linear-gradient(180deg, ${colors.primary}, ${colors.teal}, ${colors.gold})`,
+    borderRadius: 2,
+  },
+  nodeWrapper: {
+    position: 'absolute',
+    left: 136,
+    display: 'flex',
+    alignItems: 'center',
+  },
+  iconContainer: {
+    position: 'absolute',
+    width: 48,
+    height: 48,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  nodeContainer: {
+    position: 'relative',
+    width: 28,
+    height: 28,
+    zIndex: 10,
+  },
+  nodeOuter: {
+    position: 'absolute',
+    width: 28,
+    height: 28,
+    borderRadius: '50%',
+    background: colors.white,
+    border: `2px solid ${colors.primary}`,
+    boxShadow: `0 0 0 2px ${colors.white}`,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  nodeGlow: {
+    position: 'absolute',
+    width: 48,
+    height: 48,
+    borderRadius: '50%',
+    top: -12,
+    left: -12,
+    background: `radial-gradient(circle, ${colors.gold}40, transparent)`,
+    filter: 'blur(6px)',
+  },
+  nodeInner: {
+    width: 12,
+    height: 12,
+    borderRadius: '50%',
+    background: `radial-gradient(circle, ${colors.teal}, ${colors.primary})`,
+  },
+  labelContainer: {
+    position: 'absolute',
+    left: 48,
+    whiteSpace: 'nowrap',
+  },
+  labelText: {
+    fontSize: 20,
+    fontWeight: 500,
+    color: colors.ink,
+    letterSpacing: '0.3em',
+    textTransform: 'uppercase',
+  },
+  labelLine: {
+    position: 'absolute',
+    left: -28,
+    top: '50%',
+    height: 1,
+    background: `linear-gradient(90deg, ${colors.gold}, transparent)`,
+  },
+  messageContainer: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    textAlign: 'center',
+    pointerEvents: 'none',
+  },
+  messageWrapper: {
+    position: 'absolute',
+    textAlign: 'center',
+  },
+  wordmarkGlow: {
+    position: 'absolute',
+  },
+  finalMessage: {
+    fontSize: 64,
+    fontWeight: 500,
+    color: colors.primary,
+    letterSpacing: '0.15em',
+  },
+  finalMessageLight: {
+    fontWeight: 400,
+    color: colors.ink,
+  },
+  // Scene 2 styles (text only)
+  surgeonContainer: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    textAlign: 'center',
+    pointerEvents: 'none',
+  },
+  surgeonTextWrapper: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    textAlign: 'center',
+  },
+  surgeonLine1: {
+    fontSize: 56,
+    fontWeight: 500,
+    color: colors.ink,
+    letterSpacing: '0.05em',
+  },
+  surgeonLine2: {
+    fontSize: 56,
+    fontWeight: 500,
+    color: colors.ink,
+    letterSpacing: '0.05em',
+  },
+  surgeonAccent: {
+    color: colors.primary,
+    fontWeight: 600,
+  },
+};
